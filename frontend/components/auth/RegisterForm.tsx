@@ -21,7 +21,7 @@ export default function RegisterForm() {
     try {
       const tokens = await register(username, email, password);
       setTokens(tokens.access, tokens.refresh);
-      router.push("/board");
+      router.push("/");
     } catch {
       setError("Couldn't create that account — try a different username.");
     } finally {
