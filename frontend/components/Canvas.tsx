@@ -16,6 +16,14 @@ const RECT_COLOR = "#BFDBFE";
 const STROKE_COLOR = "#1F2937";
 const SELECT_COLOR = "#2563EB";
 
+const CURSOR_COLORS = ["#F97316", "#10B981", "#8B5CF6", "#EC4899", "#14B8A6", "#F59E0B", "#6366F1", "#EF4444"];
+
+function hashUsername(name: string): number {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return hash;
+}
+
 type Tool = "select" | "sticky" | "rectangle" | "pen" | "text";
 type Box = { x: number; y: number; width: number; height: number };
 type Props = Record<string, unknown>;
@@ -75,6 +83,7 @@ export default function Canvas({ boardId }: { boardId: string }) {
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [tool, setTool] = useState<Tool>("select");
   const [isSpaceDown, setIsSpaceDown] = useState(false);
+  const cursors = useBoardStore((s) => s.cursors);
 
   const [draftRect, setDraftRect] = useState<Box | null>(null);
   const [draftStroke, setDraftStroke] = useState<number[] | null>(null);
@@ -108,6 +117,13 @@ export default function Canvas({ boardId }: { boardId: string }) {
   useEffect(() => {
     if (data) setElements(data);
   }, [data, setElements]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      useBoardStore.getState().pruneStaleCursors(8000);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const pushUndo = (entry: UndoEntry) => {
     setUndoStack((prev) => [...prev, entry]);
@@ -269,8 +285,8 @@ export default function Canvas({ boardId }: { boardId: string }) {
     const now = Date.now();
     if (now - lastCursorSent >= 80) {
       lastCursorSent = now;
-      const pointer = stageRef.current?.getPointerPosition();
-      if (pointer) send({ action: "cursor.move", x: pointer.x, y: pointer.y });
+      const point = getDataPoint();
+      if (point) send({ action: "cursor.move", x: point.x, y: point.y });
     }
 
     if (tool === "rectangle" && drawStart.current) {
@@ -659,6 +675,36 @@ export default function Canvas({ boardId }: { boardId: string }) {
               listening={false}
             />
           )}
+
+          {Object.values(cursors)
+            .filter((c) => c.user !== currentUser?.username)
+            .map((c) => {
+              const color = CURSOR_COLORS[hashUsername(c.user) % CURSOR_COLORS.length];
+              const labelWidth = Math.max(30, c.user.length * 6.5 + 16);
+              return (
+                <Group key={c.user} x={c.x} y={c.y} scaleX={1 / scale} scaleY={1 / scale} listening={false}>
+                  <Line
+                    points={[0, 0, 0, 16, 4, 12, 7, 19, 10, 17, 7, 10, 14, 10]}
+                    closed
+                    fill={color}
+                    stroke="white"
+                    strokeWidth={1.5}
+                  />
+                  <Rect x={14} y={2} width={labelWidth} height={20} cornerRadius={10} fill={color} />
+                  <Text
+                    x={14}
+                    y={2}
+                    width={labelWidth}
+                    height={20}
+                    text={c.user}
+                    fontSize={12}
+                    fill="white"
+                    align="center"
+                    verticalAlign="middle"
+                  />
+                </Group>
+              );
+            })}
         </Layer>
       </Stage>
 

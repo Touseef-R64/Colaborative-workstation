@@ -1,6 +1,6 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 import { authFetch } from "./auth";
-
+import { UserDTO } from "./useAuth";
 export interface ElementDTO {
   id: string;
   board: string;
@@ -69,33 +69,20 @@ export async function removeMember(boardId: string, memberId: number): Promise<v
   if (!res.ok) throw new Error("Failed to remove member");
 }
 
-export async function login(username: string,password:string){
 
-    const res=await fetch(
+export async function login(username: string, password: string) {
+  const res = await fetch(`${API_URL}/users/auth/login/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
 
-        `${API_URL}/users/auth/login/`,
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? "Invalid username or password.");
+  }
 
-        {
-
-            method:"POST",
-
-            headers:{
-                "Content-Type":"application/json"
-            },
-
-            body:JSON.stringify({
-
-                username,
-                password
-
-            })
-
-        }
-
-    );
-
-    return res.json();
-
+  return res.json();
 }
 
 export async function register(username: string,email: string,password:string){
@@ -154,5 +141,60 @@ export async function createBoard(name: string): Promise<BoardDTO> {
     throw new Error("Failed to create board");
   }
 
+  return res.json();
+}
+
+
+export async function updateUsername(username: string): Promise<UserDTO> {
+  const res = await authFetch(`${API_URL}/users/auth/me/`, {
+    method: "PATCH",
+    body: JSON.stringify({ username }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.username?.[0] ?? body.detail ?? "Failed to update username");
+  }
+  return res.json();
+}
+
+export async function requestEmailChange(newEmail: string): Promise<{ detail: string }> {
+  const res = await authFetch(`${API_URL}/users/auth/email/`, {
+    method: "POST",
+    body: JSON.stringify({ new_email: newEmail }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.new_email?.[0] ?? body.detail ?? "Failed to request email change");
+  }
+  return res.json();
+}
+
+export async function confirmEmailChange(token: string): Promise<{ detail: string }> {
+  const res = await fetch(`${API_URL}/users/auth/email/confirm/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? "Failed to confirm email change");
+  }
+  return res.json();
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ detail: string }> {
+  const res = await authFetch(`${API_URL}/users/auth/password/`, {
+    method: "POST",
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      body.current_password?.[0] ?? body.new_password?.[0] ?? body.detail ?? "Failed to change password"
+    );
+  }
   return res.json();
 }

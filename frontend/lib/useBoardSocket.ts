@@ -18,8 +18,8 @@ type OutgoingMessage =
 export function useBoardSocket(boardId: string) {
   const accessToken = getAccessToken();
   const socketRef = useRef<WebSocket | null>(null);
-  const { upsertElement, removeElement, setCursor, lockElement, unlockElement } =
-    useBoardStore();
+  const { upsertElement, removeElement, setCursor, removeCursor, lockElement, unlockElement } =
+  useBoardStore();
 
   useEffect(() => {
     const socket = new WebSocket(`${WS_URL}/boards/${boardId}/?token=${accessToken}`);
@@ -44,6 +44,9 @@ export function useBoardSocket(boardId: string) {
           break;
         case "element.unlock":
           unlockElement(msg.id);
+          break;
+        case "cursor.leave":
+          removeCursor(msg.user);
           break;
       }
     };

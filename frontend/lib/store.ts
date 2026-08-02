@@ -5,6 +5,7 @@ interface CursorState {
   x: number;
   y: number;
   user: string;
+  updatedAt: number;
 }
 
 interface BoardState {
@@ -16,6 +17,8 @@ interface BoardState {
   upsertElement: (element: ElementDTO) => void;
   removeElement: (id: string) => void;
   setCursor: (user: string, x: number, y: number) => void;
+  removeCursor: (user: string) => void;
+  pruneStaleCursors: (maxAgeMs: number) => void;
   lockElement: (id: string, user: string) => void;
   unlockElement: (id: string) => void;
 }
@@ -43,8 +46,23 @@ export const useBoardStore = create<BoardState>((set) => ({
 
   setCursor: (user, x, y) =>
     set((state) => ({
-      cursors: { ...state.cursors, [user]: { x, y, user } },
+      cursors: { ...state.cursors, [user]: { x, y, user, updatedAt: Date.now() } },
     })),
+
+  removeCursor: (user) =>
+    set((state) => {
+      const { [user]: _removed, ...rest } = state.cursors;
+      return { cursors: rest };
+    }),
+
+  pruneStaleCursors: (maxAgeMs) =>
+    set((state) => {
+      const now = Date.now();
+      const fresh = Object.fromEntries(
+        Object.entries(state.cursors).filter(([, c]) => now - c.updatedAt < maxAgeMs)
+      );
+      return { cursors: fresh };
+    }),
 
   lockElement: (id, user) =>
     set((state) => ({ lockedBy: { ...state.lockedBy, [id]: user } })),

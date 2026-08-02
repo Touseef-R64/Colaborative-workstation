@@ -1,7 +1,10 @@
 import os
 from pathlib import Path
-
+from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / ".env.local", override=True)
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 DEBUG = os.environ.get("DEBUG", "1") == "1"
@@ -18,6 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
+    "accounts",
     "channels",
     "boards",
 ]
@@ -60,7 +64,7 @@ DATABASES = {
         "NAME": os.environ.get("POSTGRES_DB", "miro_lite"),
         "USER": os.environ.get("POSTGRES_USER", "miro_lite"),
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "miro_lite"),
-        "HOST": os.environ.get("POSTGRES_HOST", "db"),
+        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
     }
 }
@@ -71,12 +75,16 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": False,  # True = also issue a new refresh token on each refresh call
 }
 
-REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [REDIS_URL]},
+        "CONFIG": {
+            "hosts": [REDIS_URL],
+            "capacity": 300,   # default is 100
+            "expiry": 10,
+        },
     }
 }
 
@@ -110,3 +118,8 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
 }
+
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
+EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@mirolite.local")
