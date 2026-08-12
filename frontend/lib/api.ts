@@ -4,7 +4,8 @@ import { UserDTO } from "./useAuth";
 export interface ElementDTO {
   id: string;
   board: string;
-  type: "sticky" | "shape" | "text" | "image" | "stroke";
+  parent: string | null;  // NEW
+  type: "sticky" | "shape" | "text" | "image" | "stroke" | "frame" | "group";  // extended
   props: Record<string, unknown>;
   z_index: number;
 }
@@ -22,6 +23,13 @@ export interface BoardMemberDTO {
   user: { id: number; username: string };
   role: "owner" | "editor" | "viewer";
   invited_at: string;
+}
+
+export interface SavedTemplateDTO {
+  id: string;
+  name: string;
+  snapshot: unknown;
+  created_at: string;
 }
 
 export async function fetchElements(boardId: string): Promise<ElementDTO[]> {
@@ -60,6 +68,41 @@ export async function inviteMember(
     throw new Error(body.detail ?? "Failed to invite member");
   }
   return res.json();
+}
+
+export async function fetchTemplates(): Promise<SavedTemplateDTO[]> {
+  const res = await authFetch(`${API_URL}/templates/`);
+  if (!res.ok) throw new Error("Failed to fetch templates");
+  const data = await res.json();
+  return Array.isArray(data) ? data : data.results ?? [];
+}
+
+export async function saveGroupAsTemplate(elementId: string, name: string): Promise<SavedTemplateDTO> {
+  const res = await authFetch(`${API_URL}/templates/save-group/`, {
+    method: "POST",
+    body: JSON.stringify({ element: elementId, name }),
+  });
+  if (!res.ok) throw new Error("Failed to save template");
+  return res.json();
+}
+
+export async function applyTemplate(
+  templateId: string,
+  boardId: string,
+  x: number,
+  y: number
+): Promise<{ created: string[] }> {
+  const res = await authFetch(`${API_URL}/templates/${templateId}/apply/`, {
+    method: "POST",
+    body: JSON.stringify({ board: boardId, x, y }),
+  });
+  if (!res.ok) throw new Error("Failed to apply template");
+  return res.json();
+}
+
+export async function deleteTemplate(templateId: string): Promise<void> {
+  const res = await authFetch(`${API_URL}/templates/${templateId}/`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete template");
 }
 
 export async function removeMember(boardId: string, memberId: number): Promise<void> {

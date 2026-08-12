@@ -34,20 +34,26 @@ def flush_board_task(board_id):
 
         if entry.get("persisted"):
             to_update.append(
-                Element(id=eid, props=entry["props"], z_index=entry["z_index"], updated_at=now)
+                Element(
+                    id=eid,
+                    props=entry["props"],
+                    z_index=entry["z_index"],
+                    parent_id=entry.get("parent_id"),  # NEW
+                    updated_at=now,
+                )
             )
         else:
             to_create.append(
                 Element(
                     id=eid,
                     board_id=entry["board_id"],
+                    parent_id=entry.get("parent_id"),  # NEW
                     type=entry["type"],
                     props=entry["props"],
                     z_index=entry["z_index"],
                     created_by_id=entry.get("created_by_id"),
                 )
             )
-            entry["persisted"] = True
 
         entry["saved_at"] = saved_at
         r.hset(redis_cache.elements_key(board_id), eid, json.dumps(entry))
@@ -55,4 +61,4 @@ def flush_board_task(board_id):
     if to_create:
         Element.objects.bulk_create(to_create, ignore_conflicts=True)
     if to_update:
-        Element.objects.bulk_update(to_update, ["props", "z_index", "updated_at"])
+        Element.objects.bulk_update(to_update, ["props", "z_index", "parent_id", "updated_at"])

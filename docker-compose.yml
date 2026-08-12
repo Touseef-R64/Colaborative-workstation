@@ -30,6 +30,8 @@ services:
   backend:
     build: ./backend
     command: daphne -b 0.0.0.0 -p 8000 core.asgi:application
+    environment:
+      - RUNNING_IN_DOCKER=1
     volumes:
       - ./backend:/app
     ports:
@@ -45,6 +47,8 @@ services:
   celery:
     build: ./backend
     command: celery -A core worker -l info
+    environment:
+      - RUNNING_IN_DOCKER=1
     volumes:
       - ./backend:/app
     env_file:

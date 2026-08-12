@@ -79,6 +79,11 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
             self.release_lock(content["id"])
             await self.group_broadcast({"action": "element.unlock", "id": content["id"]})
 
+        elif action == "element.move":
+            element = await self.move_element(content["id"], content.get("parent_id"), content["z_index"])
+            if element:
+                await self.group_broadcast({"action": "element.update", "element": element})
+
         elif action == "cursor.move":
             await self.group_broadcast(
                 {
@@ -128,6 +133,7 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
             props=data.get("props", {}),
             z_index=data.get("z_index", 0),
             created_by_id=self.user.id,
+            parent_id=data.get("parent_id"),  # NEW
         )
         _maybe_schedule_flush(self.board_id)
         return {
@@ -135,6 +141,7 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
             "type": entry["type"],
             "props": entry["props"],
             "z_index": entry["z_index"],
+            "parent": entry.get("parent_id"),  # NEW
         }
 
     @database_sync_to_async
@@ -149,3 +156,17 @@ class BoardConsumer(AsyncJsonWebsocketConsumer):
     def delete_element(self, element_id):
         redis_cache.cache_delete(self.board_id, element_id)
         _maybe_schedule_flush(self.board_id)
+
+    @database_sync_to_async
+    def move_element(self, element_id, parent_id, z_index):
+        entry = redis_cache.cache_move(self.board_id, element_id, parent_id, z_index)
+        if entry is None:
+            return None
+        _maybe_schedule_flush(self.board_id)
+        return {
+            "id": entry["id"],
+            "type": entry["type"],
+            "props": entry["props"],
+            "z_index": entry["z_index"],
+            "parent": entry.get("parent_id"),
+        }

@@ -58,12 +58,12 @@ def release_flush_lock(board_id):
     r = get_client()
     r.delete(flush_lock_key(board_id))
 
-
-def cache_create(board_id, element_id, type_, props, z_index, created_by_id):
+def cache_create(board_id, element_id, type_, props, z_index, created_by_id, parent_id=None):
     r = get_client()
     entry = {
         "id": str(element_id),
         "board_id": str(board_id),
+        "parent_id": str(parent_id) if parent_id else None,  # NEW
         "type": type_,
         "props": props,
         "z_index": z_index,
@@ -93,6 +93,7 @@ def cache_update(board_id, element_id, props):
         entry = {
             "id": str(element_id),
             "board_id": str(board_id),
+            "parent_id": str(el.parent_id) if el.parent_id else None,  # NEW
             "type": el.type,
             "props": props,
             "z_index": el.z_index,
@@ -111,6 +112,36 @@ def cache_delete(board_id, element_id):
     r.hdel(elements_key(board_id), str(element_id))
     r.sadd(deleted_key(board_id), str(element_id))
 
+def cache_move(board_id, element_id, parent_id, z_index):
+    """Reparent and/or reorder — doesn't touch props."""
+    r = get_client()
+    key = elements_key(board_id)
+    raw = r.hget(key, str(element_id))
+
+    if raw:
+        entry = json.loads(raw)
+    else:
+        from .models import Element
+        try:
+            el = Element.objects.get(id=element_id, board_id=board_id)
+        except Element.DoesNotExist:
+            return None
+        entry = {
+            "id": str(element_id),
+            "board_id": str(board_id),
+            "type": el.type,
+            "props": el.props,
+            "z_index": el.z_index,
+            "created_by_id": el.created_by_id,
+            "saved_at": now_iso(),
+            "persisted": True,
+        }
+
+    entry["parent_id"] = str(parent_id) if parent_id else None
+    entry["z_index"] = z_index
+    entry["updated_at"] = now_iso()
+    r.hset(key, str(element_id), json.dumps(entry))
+    return entry
 
 def get_board_cache(board_id):
     r = get_client()

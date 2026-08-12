@@ -42,6 +42,8 @@ class Element(models.Model):
         ("text", "Text"),
         ("image", "Image"),
         ("stroke", "Freehand stroke"),
+        ("frame", "Frame"),   # NEW — named, positioned region drawn on canvas
+        ("group", "Group"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -49,9 +51,12 @@ class Element(models.Model):
     type = models.CharField(max_length=10, choices=TYPE_CHOICES)
     # x, y, width, height, rotation, fill, text, points, src, etc. — shape depends on `type`
     props = models.JSONField(default=dict)
-    z_index = models.IntegerField(default=0)
+    z_index = models.FloatField(default=0)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
+    )
+    parent = models.ForeignKey(
+    "self", null=True, blank=True, on_delete=models.CASCADE, related_name="children"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -61,3 +66,11 @@ class Element(models.Model):
 
     def __str__(self):
         return f"{self.type} on {self.board_id}"
+
+class SavedGroupTemplate(models.Model):
+    """A saved snapshot of a group/frame's subtree, stampable onto any board."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="saved_templates")
+    name = models.CharField(max_length=255)
+    snapshot = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
